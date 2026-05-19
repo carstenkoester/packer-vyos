@@ -1,152 +1,250 @@
+# packer-vyos
 
-# Introduction
+HashiCorp Packer templates for building [VyOS](https://vyos.io) images.
 
-As VyOS is becoming more popular, building and automating images are essential. Packer is flexible and 
-can create custom images easily for any cloud and bare metal needs.
+`packer-vyos` builds customized VyOS images from an official VyOS ISO. It runs
+the standard VyOS installer in a QEMU VM, applies configuration using the normal
+`set` / `commit` workflow, and writes out a reusable `qcow2` image.
 
-While VyOS has its own tools for creating images and building like [vyos-vm-images](https://github.com/vyos/vyos-vm-images)
-or [vyos-build](https://github.com/vyos/vyos-build), they lack features hashicorp packer can provide for automating images.
-vyos-vm-images use ansible for build images, you can do almost any lower level customatization using this great tool. 
-vyos-build can be customizated and create custom images as well. 
+The project is intended for DevOps users who already understand Packer and want
+a repeatable way to produce VyOS images for QEMU-compatible environments,
+including Proxmox, Vagrant, VirtualBox, VMware, cloud platforms, and local labs.
 
-Some notes about packer-vyos:
-* packer-vyos audience is for devops who understand how packer works
-* packer-vyos use qemu for default building
-* packer-vyos image can access internet inside building VM and download custom packages
+## When to use this
 
+Use `packer-vyos` when you want to:
 
-## How build process works:
+- build a reusable VyOS `qcow2` image from an ISO;
+- customize the image before first boot;
+- install extra packages or agents;
+- prepare an image for cloud-init;
+- produce images for multiple virtualization targets using Packer.
 
-* you should provides an vyos.iso for builder
-* iso can be a LTS/oficial one or nightly iso or you can use [vyos-build](https://docs.vyos.io/en/equuleus/contributing/build-vyos.html) to build an iso
-* packer-vyos will install VyOS same way than manually installations
-    * packer-vyos will start vyos.iso image in a qemu VM, VyOS will run in Live CD mode inside a qemu VM
-    * packer will provide DHCP server, 1 ipv4, 1 gateway with NAT for qemu images
-    * packer will provide a http server serving http/* folder files to VyOS, so we can use it to customize image
-    * packer can provide for development with headless=false mode a vnc server, so we can see what is running on VM console
-    * packer-vyos will send keyboard commands to VyOS Live CD like default vyos / vyos username/password
-    * packer-vyos will configure networking to use dhcp ```set interface ethernet eth0 address dhcp```, than ```commit```
-    * packer-vyos will customize images using scripts/vyos/*.sh according to rules inside vyos.pkr.hcl
-    * after all scripts packer-vyos will install image to disk using VyOS ```install image```
-    * packer will write image on output-* folder
+If you want to build VyOS itself from source, use
+[`vyos-build`](https://github.com/vyos/vyos-build).
 
-# Features
+## How the build works
 
-* add debian 11/12 sources in apt-sources.d before install
-* remove debian 11/12 sources in apt-sources.d before install
-* install custom packages using apt install
-* install cloud-init from the upstream Debian repository or the custom version provided by VyOS
-* do any shell command or vyos command before to install
-* cleanup and prepare everything to turn vyos into cloud image
-* simple parameters as disk size or image name can be customized easily
-* install qemu-guest-agent
-* customize to install any other agent or package as needed
-* grub with kvm/serial
-* disable/enable ssh 
-* disable/enable dhcp
-* set interface/gateway 
-* keep vyos/vyos user/password or customize it
-* it is possible to build custom images for bare metal, docker or any virtualization or cloud providers
-* also it is possible to integrate building process using other [packer builders](https://developer.hashicorp.com/packer/integrations?components=builder) 
-besides qemu like aws, azure, cloudstack, docker, gcp, proxmox, vagrant, virtualbox, vmware and others
+1. You provide a VyOS ISO: LTS, rolling/nightly, or one built locally with
+   `vyos-build`.
+2. Packer boots the ISO in a QEMU VM.
+3. The boot/login flow is driven over the console using the default
+   `vyos` / `vyos` credentials.
+4. The installer is run with `install image`.
+5. Base networking is configured, typically with DHCP on `eth0`.
+6. Customization scripts under `scripts/vyos/` are executed according to
+   `vyos.pkr.hcl`.
+7. Optional packages, agents, cloud-init support, and cleanup steps are applied.
+8. The final image is written under `output-*/` and copied to `iso/` as a
+   reusable `qcow2`.
 
-# Requirements
+When `headless=false`, Packer exposes a VNC server so you can watch or debug
+the installer.
 
-* packer-vyos is develop using ubuntu 24 LTS, but should run in debian, you can try other distros
-* packer-vyos use qemu, build inside a VM needs vmx/svm instruction. VMs inside proxmox need cpu=host
-    * check if virtualization is enabled
-    ```
-    egrep '(vmx|svm)' --color=always /proc/cpuinfo
-    ```
-    * enabling neasted virtualization in proxmox:
-    ```
-    qm set <vmid> --cpu host
-    ```
-* use root to build, for production use a dedicated vm only for packer build with cpu=host
+## Features
 
+- Build VyOS images from official, rolling, or locally built ISOs
+- Two-stage build flow: install first, customize second
+- Add or remove Debian apt sources before installation
+- Install custom packages with `apt`
+- Install cloud-init, either upstream Debian or VyOS-patched variants
+- Run arbitrary shell or VyOS commands during customization
+- Prepare images for cloud or template usage
+- Install `qemu-guest-agent` and other virtualization agents
+- Configure GRUB for KVM and serial console usage
+- Toggle SSH and DHCP
+- Configure interface address and default gateway
+- Keep or replace the default `vyos` / `vyos` credentials
+- Tune disk size and output image name
+- Use the same Packer workflow for QEMU and other compatible builders
 
-## Packages requirements:
+## Related projects
 
-```
-apt install make
-apt install qemu-system 
-```
+- [`pyvyos`](https://github.com/vyos-contrib/pyvyos) — Python SDK for the VyOS
+  HTTPS API. Useful after the image boots, for automated configuration or
+  testing.
+- [`vyos-build`](https://github.com/vyos/vyos-build) — official VyOS build
+  system for building VyOS images from source.
+- [`vyos-vm-images`](https://github.com/vyos-legacy/vyos-vm-images) — Ansible-based
+  VyOS VM image build automation. Archived in May 2024 and now read-only.
 
-## headless=false 
+## Requirements
 
-For headless=false follow development instructions bellow.
+- Linux host with hardware virtualization.
+- QEMU/KVM support.
+- Packer.
+- `make`.
+- A VyOS ISO.
 
-# Debugging / development
+This project is developed and tested on Ubuntu 24.04 LTS. Debian should also
+work. Other distributions may work but are not the primary target.
 
-* headless=true is recommended
-* to turn headless=true use vncviewer (apt install tigervnc-viewer)
-* for compilling packages remotely use Xvfb (apt install xvfb)
-* for forward X11 ports use ssh forwarding (ssh -X -v or ssh -Y -v if -X doesn't works)
-* edit vnc-connect.sh and ajuste VNC ports, it is possible to get ports dinamicly saving packer log to a file and parsing, but for now put VNC_PORT_FIXED=5900 on .env and it will work. As soon as VNC server open port vncviewer will run and it. If you connect to ssh using X11 port forwarding, it should open console on your local desktop. Windows WSL2 offer X11 Server native and it works. 
-* in headless/remote ssh, before make build you need to start Xvfb. ```make x11server``` start X11 server, but you can put on init with something like https://gist.github.com/jterrace/2911875
-* for SSH access put in .env SLEEP_BEFORE_SHUTDOWN=600 to keep SSH on for 10 minutes after scripts run. Also put HOST_PORT_FIXED=2222 for open SSH in VM 127.0.0.1 in port 2222. ```ssh vyos@127.0.0.1 -p 2222``` default password is vyos.
+Check that hardware virtualization is available:
 
-# Usage
-
-## Edit Variables
-* local.pkrvars.hcl if exists or will use default vars vyos.pkrvars.hcl if local not exists
-* if .env exists will load
-    * example.env is provided in git repo as base of .env. .env file has building vars, which control building process
-
-## Initialize packer
-Packer need to load plugins first.
-
-Use:
-* ```make init```, for first time init
-* ```make upgrade```, when want to upgrade plugins
-
-## Build images
-* ```make build1-x.x```
-    * build first stage image
-    * create a new qcow2 image 
-    * mount iso as cdrom
-    * use vyos installer
-        * ```install image```
-    * files generated:
-        * source: iso/vyos-1.3.6.iso
-        * output: iso/vyos-1.3.6.qcow2
-        * checksum: iso/SHA256SUM
-* ```make build2-x.x```
-    * build second stage image
-    * use same qcow2 image from first stage
-    * customize image
-    * files generated:    
-        * source: iso/vyos-1.3.6.qcow2
-        * output: iso/vyos-1.3.6.qcow2
-        * checksum: iso/SHA256SUM
-    
-## Vyos releases supported
-* subscribe to [commercial edition](https://vyos.io/subscriptions/software) and use an LTS iso
-* use [rolling releases](https://vyos.net/get/nightly-builds/)
-* use [vyos-build](https://github.com/vyos/vyos-build) to build an iso from source from desired branch (1.3/equuleus, 1.4/sagitta, 1.5/circinus or current)
-
-### Build instructions for each release
-* common: use ubuntu 24 in a vm with virtualization host cpu instruction to build 
-```
-apt update
-# apt install -y make qemu-system # for headless=true
-apt install -y make qemu-system xvfb tigervnc-viewer # for headless=false
-make x11server # will turn on x11 server, you can use headless=false in pkrvars.hcl to build without vnc
-make init # install packer plugins
+```bash
+egrep '(vmx|svm)' /proc/cpuinfo
 ```
 
-* 1.3 
+If running inside a Proxmox VM, enable host CPU passthrough so nested
+virtualization is available:
+
+```bash
+qm set <vmid> --cpu host
 ```
-make build1-1.3
-make build2-1.3
+
+For production builds, run on a dedicated Linux build host or a dedicated VM
+with nested virtualization enabled.
+
+### Packages
+
+On Debian/Ubuntu:
+
+```bash
+apt install make qemu-system
 ```
-* 1.4
+
+For graphical debugging with VNC:
+
+```bash
+apt install tigervnc-viewer
 ```
-make build1-1.4
-make build2-1.4
+
+For remote/headless debugging with a virtual X server:
+
+```bash
+apt install xvfb
 ```
-* 1.5
+
+## Usage
+
+### Configuration
+
+The build reads variables from:
+
+1. `local.pkrvars.hcl`, if present;
+2. otherwise `vyos.pkrvars.hcl`;
+3. `.env`, if present.
+
+Use `example.env` as the starting point for environment variables.
+
+```bash
+cp example.env .env
 ```
-make build1-1.5
-make build2-1.5
+
+Edit `.env` and the relevant `.pkrvars.hcl` file before building.
+
+### Initialize Packer
+
+Run once before the first build:
+
+```bash
+make init
 ```
+
+To upgrade Packer plugins:
+
+```bash
+make upgrade
+```
+
+### Build
+
+The build has two stages:
+
+- `build1-*`: boots the VyOS ISO and runs `install image`;
+- `build2-*`: boots the installed disk image and applies customization.
+
+Examples:
+
+```bash
+make build1-1.3 && make build2-1.3
+make build1-1.4 && make build2-1.4
+make build1-1.5 && make build2-1.5
+```
+
+Generated files:
+
+```text
+iso/vyos-X.Y.iso
+iso/vyos-X.Y.qcow2
+iso/SHA256SUM
+```
+
+## Supported VyOS releases
+
+`packer-vyos` can build from:
+
+- VyOS LTS ISOs, available through a commercial subscription;
+- VyOS rolling/nightly builds;
+- locally built ISOs from `vyos-build`.
+
+Common release branches:
+
+- `equuleus` / 1.3
+- `sagitta` / 1.4
+- `circinus` / 1.5
+- `current`
+
+## Debugging and development
+
+`headless=true` is the recommended default for automated builds.
+
+Set `headless=false` when you want to watch the installer through VNC.
+
+For local debugging, install a VNC client:
+
+```bash
+apt install tigervnc-viewer
+```
+
+For remote or headless hosts, start an X server with `Xvfb` and forward X11
+over SSH:
+
+```bash
+ssh -X user@host
+# or
+ssh -Y user@host
+```
+
+Start the virtual X server:
+
+```bash
+make x11server
+```
+
+To attach a VNC viewer automatically, edit `vnc-connect.sh` and set a fixed
+VNC port in `.env`:
+
+```env
+VNC_PORT_FIXED=5900
+```
+
+For SSH access into the temporary VM during a build, hold the VM after scripts
+finish:
+
+```env
+SLEEP_BEFORE_SHUTDOWN=600
+HOST_PORT_FIXED=2222
+```
+
+Then connect with:
+
+```bash
+ssh vyos@127.0.0.1 -p 2222
+```
+
+Default credentials are:
+
+```text
+username: vyos
+password: vyos
+```
+
+## Notes
+
+- The generated image may contain credentials or configuration from your local
+  build variables. Treat build artifacts as sensitive.
+- Do not publish customized images without reviewing the generated
+  configuration.
+- Use `local.pkrvars.hcl` for machine-local overrides and keep it out of git.
+- Prefer `headless=true` for repeatable automated builds.
