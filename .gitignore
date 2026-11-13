@@ -1,4 +1,5 @@
 local.pkrvars.hcl
+local-vyos-*.pkrvars.hcl
 .env
 output-*
 iso/*
@@ -8,3 +9,4 @@ dev/
 .vm_name
 iso
 output
+http/*.deb

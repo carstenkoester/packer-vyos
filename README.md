@@ -47,7 +47,8 @@ the installer.
 - Two-stage build flow: install first, customize second
 - Add or remove Debian apt sources before installation
 - Install custom packages with `apt`
-- Install cloud-init, either upstream Debian or VyOS-patched variants
+- Install cloud-init from Debian, from the VyOS apt repository, or from a
+  `.deb` built from the VyOS fork
 - Run arbitrary shell or VyOS commands during customization
 - Prepare images for cloud or template usage
 - Install `qemu-guest-agent` and other virtualization agents
@@ -75,6 +76,8 @@ the installer.
 - Packer.
 - `make`.
 - A VyOS ISO.
+- `podman` or `docker`, only to build the cloud-init package from the VyOS fork
+  (see [cloud-init](#cloud-init)). It can be on a different machine.
 
 This project is developed and tested on Ubuntu 24.04 LTS. Debian should also
 work. Other distributions may work but are not the primary target.
@@ -121,9 +124,13 @@ apt install xvfb
 
 The build reads variables from:
 
-1. `local.pkrvars.hcl`, if present;
-2. otherwise `vyos.pkrvars.hcl`;
+1. `local-vyos-<version>.pkrvars.hcl`, if present (for example
+   `local-vyos-1.4.pkrvars.hcl` for `make build1-1.4` and `make build2-1.4`);
+2. otherwise `vyos-<version>.pkrvars.hcl`;
 3. `.env`, if present.
+
+The `local-` file replaces the shipped one instead of adding to it, so create
+it by copying the shipped file.
 
 Use `example.env` as the starting point for environment variables.
 
@@ -147,6 +154,27 @@ To upgrade Packer plugins:
 make upgrade
 ```
 
+### Provide the ISO
+
+`build1-*` boots an ISO from `iso/`, and Packer verifies it against
+`iso/SHA256SUM`. Both must exist before the first build.
+
+1. Copy the VyOS ISO into `iso/` and name it `<vm_name>.iso`, where `vm_name`
+   is the value in your `.pkrvars.hcl` file (for `vm_name =
+   "vyos-1.4.0-epa3-amd64"`, the file is `iso/vyos-1.4.0-epa3-amd64.iso`).
+2. Record its checksum in a `*.checksum` file and regenerate `iso/SHA256SUM`:
+
+```bash
+mkdir -p iso && cd iso
+sha256sum vyos-1.4.0-epa3-amd64.iso > vyos-1.4.0-epa3-amd64.iso.checksum
+cat *.checksum > SHA256SUM
+cd ..
+```
+
+Use a `*.checksum` file rather than writing `SHA256SUM` by hand. Every build
+regenerates `SHA256SUM` with `cat iso/*.checksum > iso/SHA256SUM`, which drops
+any entry that is not in a `*.checksum` file.
+
 ### Build
 
 The build has two stages:
@@ -162,13 +190,67 @@ make build1-1.4 && make build2-1.4
 make build1-1.5 && make build2-1.5
 ```
 
-Generated files:
+Files in `iso/` (`<vm_name>` is the `vm_name` from your `.pkrvars.hcl` file):
 
 ```text
-iso/vyos-X.Y.iso
-iso/vyos-X.Y.qcow2
-iso/SHA256SUM
+iso/<vm_name>.iso               input: the VyOS ISO you provide
+iso/<vm_name>.iso.checksum      input: checksum of that ISO
+iso/<vm_name>-build1.qcow2      build1 output: VyOS installed to disk
+iso/<vm_name>-build2.qcow2      build2 working copy of the build1 image
+iso/<vm_name>.img               final customized image (qcow2 format)
+iso/SHA256SUM                   regenerated from iso/*.checksum on every build
 ```
+
+`build1-*` also writes `.vm_name` in the repository root. `build2-*` reads it
+to find the build1 image, so run `build1-*` first, with the same `vm_name`.
+
+### cloud-init
+
+`cloud_init` in your `.pkrvars.hcl` file selects where cloud-init comes from:
+
+| Value           | cloud-init comes from                               |
+|-----------------|-----------------------------------------------------|
+| `debian`        | the Debian package (the default in the vars files)  |
+| `vyos`          | the VyOS apt repository                             |
+| `local_package` | a `.deb` you build from the VyOS fork               |
+
+`vyos` currently fails: as of November 2026 the repository host named in
+`http/debian_*-vyos.list` (`dev.packages.vyos.net`) does not resolve.
+
+With `local_package`, cloud-init keeps the fork's own defaults: on first boot it
+applies the datasource's network-config, hostname, users and SSH keys to the
+VyOS configuration. The `debian` option disables cloud-init's network
+configuration, and `vyos` also disables its config stage
+(`scripts/vyos/cloud-init-*.sh`).
+
+For `local_package`, build the package once, then set the variable:
+
+```bash
+make cloud-init-deb                        # VyOS 1.4 (sagitta)
+make cloud-init-deb VYOS_RELEASE=circinus  # another release
+```
+
+```hcl
+cloud_init = "local_package"
+```
+
+This writes `http/cloud-init_all.deb`. Packer serves it to the VM, which
+installs it with apt. Options and details are in
+[tools/cloud-init-deb](tools/cloud-init-deb/README.md).
+
+If the machine that runs Packer has no container engine, build the package on
+another machine and copy it over:
+
+```bash
+# on a machine with podman or docker
+make cloud-init-deb
+scp http/cloud-init_all.deb user@packer-host:/path/to/packer-vyos/http/
+```
+
+The package is architecture-independent (`Architecture: all`), so the build
+machine can have a different CPU architecture, for example an Apple Silicon
+Mac. In November 2026 a build in an arm64 container on a Mac produced a
+byte-identical file to one built on x86-64 Linux.
 
 ## Supported VyOS releases
 
@@ -246,5 +328,6 @@ password: vyos
   build variables. Treat build artifacts as sensitive.
 - Do not publish customized images without reviewing the generated
   configuration.
-- Use `local.pkrvars.hcl` for machine-local overrides and keep it out of git.
+- Use `local-vyos-<version>.pkrvars.hcl` for machine-local overrides. Git
+  ignores these files.
 - Prefer `headless=true` for repeatable automated builds.

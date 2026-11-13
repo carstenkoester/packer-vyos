@@ -51,6 +51,7 @@ variable "platform" {
 # cloud-init values:
 # debian - will install/replace cloud-init packages 
 # vyos - will keep cloud-init packages from vyos
+# local_package - will install the .deb named by cloud_init_local_filename
 variable "cloud_init" {
   type        = string
   default     = "vyos"
@@ -103,6 +104,11 @@ variable "grub_serial" {
 # blank - don't set default datasource_list
 variable "cloud_init_datasource" {
   default = "nocloud_configdrive"
+}
+
+# cloud_init=local_package: name of the cloud-init .deb in the http directory, build it with tools/cloud-init-deb/build.sh
+variable "cloud_init_local_filename" {
+  default = "cloud-init_all.deb"
 }
 
 locals {
@@ -223,10 +229,11 @@ build {
 
   # preparing cloud-init
   provisioner "shell" {
-    execute_command = "VYOS_RELEASE='${var.vyos_release}' CLOUD_INIT='${var.cloud_init}' CLOUD_INIT_DATASOURCE='${var.cloud_init_datasource}' {{ .Vars }} sudo -E bash '{{ .Path }}'"
+    execute_command = "VYOS_RELEASE='${var.vyos_release}' CLOUD_INIT='${var.cloud_init}' CLOUD_INIT_DATASOURCE='${var.cloud_init_datasource}' CLOUD_INIT_LOCAL_FILENAME='${var.cloud_init_local_filename}' {{ .Vars }} sudo -E bash '{{ .Path }}'"
     scripts = [
       "scripts/vyos/cloud-init-debian.sh",
       "scripts/vyos/cloud-init-vyos.sh",
+      "scripts/vyos/cloud-init-local-package.sh",
       "scripts/vyos/cloud-init-datasource.sh",
     ]
   }

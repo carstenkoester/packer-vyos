@@ -3,8 +3,9 @@
 set -e
 set -x
 
-if [[ "${CLOUD_INIT}" != "debian" ]]; then
-    echo "$0 - info: cloud_init not debian, skipping"
+# local_package needs the debian repos too, for the dependencies of the .deb
+if [[ "${CLOUD_INIT}" != "debian" && "${CLOUD_INIT}" != "local_package" ]]; then
+    echo "$0 - info: cloud_init not debian or local_package, skipping"
     exit 0
 fi
 

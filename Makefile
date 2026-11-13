@@ -12,7 +12,7 @@ DISPLAY=:99
 export
 
 VM_NAME_FILE := .vm_name
-VM_NAME := $(shell cat $(VM_NAME_FILE))
+VM_NAME := $(shell cat $(VM_NAME_FILE) 2>/dev/null)
 SRC_QCOW2 := iso/$(VM_NAME)-build1.qcow2
 DST_QCOW2 := iso/$(VM_NAME)-build2.qcow2
 SRC_CHECKSUM := iso/$(VM_NAME)-build1.qcow2.checksum
@@ -22,7 +22,7 @@ DST_CHECKSUM := iso/$(VM_NAME)-build2.qcow2.checksum
 .PHONY: help
 help:
 	@echo "make working:"
-	@echo "- will use local.pkrvars.hcl if exists or vyos.pkrvars.hcl"
+	@echo "- will use local-vyos-<version>.pkrvars.hcl if exists or vyos-<version>.pkrvars.hcl"
 	@echo "- will load .env if file exists"
 
 	@echo "make usage:"
@@ -30,6 +30,7 @@ help:
 	@echo "  make init  - init 'packer init'"
 	@echo "  make upgrade  - init 'packer init -upgrade'"
 	@echo "  make clean - remove output files"
+	@echo "  make cloud-init-deb - build the cloud-init .deb for cloud_init=local_package. Require podman or docker"
 	@echo "  make x11server - start Xvfb X11 server on DISPLAY=:99. Require apt install xvfb"
 
 
@@ -89,8 +90,14 @@ else
 endif
 
 
+# build1 writes .vm_name, build2 needs it to find the build1 image
+.PHONY: check-build1
+check-build1:
+	@test -f $(VM_NAME_FILE) || { echo "$(VM_NAME_FILE) not found, run the matching 'make build1-*' first" >&2; exit 1; }
+
+
 .PHONY: build2-1.3
-build2-1.3:
+build2-1.3: check-build1
 # create a copy of qcow2 - if build2 fail you can run again
 	cp -f $(SRC_QCOW2) $(DST_QCOW2)
 	cp -f $(SRC_CHECKSUM) $(DST_CHECKSUM)
@@ -112,7 +119,7 @@ endif
 
 
 .PHONY: build2-1.4
-build2-1.4:
+build2-1.4: check-build1
 # create a copy of qcow2 - if build2 fail you can run again
 	cp -f $(SRC_QCOW2) $(DST_QCOW2)
 	cp -f $(SRC_CHECKSUM) $(DST_CHECKSUM)
@@ -133,7 +140,7 @@ else
 endif
 
 .PHONY: build2-1.5
-build2-1.5:
+build2-1.5: check-build1
 # create a copy of qcow2 - if build2 fail you can run again
 	cp -f $(SRC_QCOW2) $(DST_QCOW2)
 	cp -f $(SRC_CHECKSUM) $(DST_CHECKSUM)
@@ -152,6 +159,12 @@ else
 	-parallel-builds=0 \
 	vyos-image2-1.5.pkr.hcl
 endif
+
+
+# ie: make cloud-init-deb VYOS_RELEASE=sagitta
+.PHONY: cloud-init-deb
+cloud-init-deb:
+	tools/cloud-init-deb/build.sh
 
 
 .PHONY: init

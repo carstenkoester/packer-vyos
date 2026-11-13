@@ -18,6 +18,7 @@ platform            = "qemu"
 # cloud-init values:
 # debian - will install/replace cloud-init packages 
 # vyos - will keep cloud-init packages from vyos
+# local_package - will install the .deb named by cloud_init_local_filename
 # comment - don't install cloud-init at all
 cloud_init          = "debian"
 
@@ -25,6 +26,10 @@ cloud_init          = "debian"
 # nocloud_configdrive => use this as default, will turn on NoCloud, ConfigDrive on cloud-init datasource_list
 # blank - don't set default datasource_list
 cloud_init_datasource = "nocloud_configdrive"
+
+# cloud_init = "local_package" only: name of the cloud-init .deb in the http directory
+# build it with tools/cloud-init-deb/build.sh
+#cloud_init_local_filename = "cloud-init_all.deb"
 
 # Set grub_serial=1 to turn grub default=1, ie: use serial console. it is need to adjust on hypervisor
 # 
