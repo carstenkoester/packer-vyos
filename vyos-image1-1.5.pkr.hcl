@@ -91,7 +91,7 @@ variable "sleep_after_grub" {
   default = "60" # in seconds
 }
 
-# set grub_serial=1 to turn grub default=1, ie: use serial console. it is need to adjust on hypervisor
+# set grub_serial=1 to boot with the serial console instead of the VGA console. the hypervisor needs a serial port as well
 variable "grub_serial" {
   type        = string
   default     = 1

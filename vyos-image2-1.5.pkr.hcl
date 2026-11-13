@@ -93,7 +93,7 @@ variable "sleep_after_grub" {
   default = "45" # in seconds
 }
 
-# set grub_serial=1 to turn grub default=1, ie: use serial console. it is need to adjust on hypervisor
+# set grub_serial=1 to boot with the serial console instead of the VGA console. the hypervisor needs a serial port as well
 variable "grub_serial" {
   type        = string
   default     = 1
@@ -253,7 +253,7 @@ build {
     ]
   }
 
-  # if grub_serial=1 change grub default to serial
+  # if grub_serial=1 switch the boot console to serial
   provisioner "shell" {
     execute_command = "VYOS_RELEASE='${var.vyos_release}' GRUB_SERIAL='${var.grub_serial}' {{ .Vars }} sudo -E bash '{{ .Path }}'"
     scripts = [

@@ -37,7 +37,8 @@ cloud_init_datasource = "nocloud_configdrive"
 # so it needs a seed
 #remove_build_user = true
 
-# Set grub_serial=1 to turn grub default=1, ie: use serial console. it is need to adjust on hypervisor
+# Set grub_serial=1 to boot with the serial console instead of the VGA console. The hypervisor needs a
+# serial port as well. On VyOS 1.4 and later, kernel and boot messages then go to serial only.
 # 
 # for proxmox:
 #   qm set 9000 --serial0 socket --vga serial0
