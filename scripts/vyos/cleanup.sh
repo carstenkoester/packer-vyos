@@ -25,8 +25,9 @@ truncate -s 0 /etc/machine-id
 # removing /tmp files
 rm -rf /tmp/*
 
-# removing log files
-rm -rf /var/log/*
+# removing log files, but keeping the directories: packages ship some of them
+# (/var/log/audit, /var/log/atop) and their services fail to start without them
+find /var/log -mindepth 1 ! -type d -delete
 
 # removing history
 export HISTFILE=0
