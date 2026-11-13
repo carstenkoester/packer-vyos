@@ -252,6 +252,35 @@ machine can have a different CPU architecture, for example an Apple Silicon
 Mac. In November 2026 a build in an arm64 container on a Mac produced a
 byte-identical file to one built on x86-64 Linux.
 
+### Build user credentials
+
+The installer creates the `vyos` user with the password from `ssh_password`,
+and Packer logs in with it during the build. The password hash is saved in the
+image's configuration, so a deployed VM keeps accepting that login even if
+cloud-init also creates other users.
+
+To remove the user from the saved configuration at the end of the build, set
+this in your `.pkrvars.hcl` file:
+
+```hcl
+remove_build_user = true
+```
+
+On first boot VyOS deletes the account, because it is not in the configuration.
+VyOS itself only restores the default `vyos`/`vyos` account when `config.boot`
+is missing, so the image has no login until cloud-init creates one.
+
+With a seed, the logins come from its user-data. Without one, cloud-init does
+not run and the image has no login, so use `remove_build_user` only for images
+that always boot with a seed. For an image you want to log in to without a
+seed, leave it `false`. To recover an image without a login, reset the password
+from the GRUB menu.
+
+Use `remove_build_user` with `cloud_init = "local_package"`, the only option
+where cloud-init writes the seed's logins into the VyOS configuration. With
+`debian` or `vyos` it likely leaves the image without a login even with a seed.
+That is untested.
+
 ## Supported VyOS releases
 
 `packer-vyos` can build from:

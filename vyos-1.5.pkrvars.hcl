@@ -32,6 +32,11 @@ cloud_init_datasource = "nocloud_configdrive"
 # build it with tools/cloud-init-deb/build.sh
 #cloud_init_local_filename = "cloud-init_all.deb"
 
+# true: at the end of the build, remove the vyos user from the saved config, so the image has no
+# known login credential. the image then has no login until cloud-init creates one on first boot,
+# so it needs a seed
+#remove_build_user = true
+
 # Set grub_serial=1 to turn grub default=1, ie: use serial console. it is need to adjust on hypervisor
 # 
 # for proxmox:

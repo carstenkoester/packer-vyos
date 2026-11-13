@@ -111,6 +111,13 @@ variable "cloud_init_local_filename" {
   default = "cloud-init_all.deb"
 }
 
+# true: at the end of the build, remove the vyos user from the saved config, so the image has no known login credential
+# the image then has no login until cloud-init creates one on first boot
+variable "remove_build_user" {
+  type    = bool
+  default = false
+}
+
 locals {
   iso_path        = "iso/${var.vm_name}-build2.qcow2"  # not used at all since qemuargs -drive override it
   output_dir      = "output/vyos-image2/${regex_replace(timestamp(), "[: ]", "-")}"
@@ -256,7 +263,7 @@ build {
 
   # image cleanup 
   provisioner "shell" {
-    execute_command = "VYOS_RELEASE='${var.vyos_release}' {{ .Vars }} sudo -E bash '{{ .Path }}'"
+    execute_command = "VYOS_RELEASE='${var.vyos_release}' REMOVE_BUILD_USER='${var.remove_build_user}' {{ .Vars }} sudo -E bash '{{ .Path }}'"
     scripts = [
       "scripts/vyos/cleanup-vyos-configure.sh",
       "scripts/vyos/cleanup.sh",
