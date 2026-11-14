@@ -9,11 +9,19 @@ export DEBIAN_FRONTEND=noninteractive
 # delete interfaces ethernet eth0 hw-id
 # delete system name-server
 
+# hostname saved in the image, from image_hostname in the pkrvars file. vyos refuses other names
+# at commit, which the vbash script below would not report, so check it here
+IMAGE_HOSTNAME="${IMAGE_HOSTNAME:-vyosbuild}"
+if [[ ! "${IMAGE_HOSTNAME}" =~ ^[A-Za-z0-9][-.A-Za-z0-9]*[A-Za-z0-9]$ || ${#IMAGE_HOSTNAME} -gt 63 ]]; then
+    echo "$0 - error: image_hostname '${IMAGE_HOSTNAME}' is not a valid vyos host-name" >&2
+    exit 1
+fi
+
 cat <<EOF > /home/vyos/cleanup-vyos.sh
 #!/bin/vbash
 source /opt/vyatta/etc/functions/script-template
 configure
-set system host-name 'vyosbuild'
+set system host-name '${IMAGE_HOSTNAME}'
 commit
 save
 exit

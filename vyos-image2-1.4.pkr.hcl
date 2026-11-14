@@ -118,6 +118,12 @@ variable "remove_build_user" {
   default = false
 }
 
+# hostname saved in the image config. cloud-init can replace it on first boot, if the seed sets one
+variable "image_hostname" {
+  type    = string
+  default = "vyosbuild"
+}
+
 locals {
   iso_path        = "iso/${var.vm_name}-build2.qcow2"  # not used at all since qemuargs -drive override it
   output_dir      = "output/vyos-image2/${regex_replace(timestamp(), "[: ]", "-")}"
@@ -263,7 +269,7 @@ build {
 
   # image cleanup 
   provisioner "shell" {
-    execute_command = "VYOS_RELEASE='${var.vyos_release}' REMOVE_BUILD_USER='${var.remove_build_user}' {{ .Vars }} sudo -E bash '{{ .Path }}'"
+    execute_command = "VYOS_RELEASE='${var.vyos_release}' REMOVE_BUILD_USER='${var.remove_build_user}' IMAGE_HOSTNAME='${var.image_hostname}' {{ .Vars }} sudo -E bash '{{ .Path }}'"
     scripts = [
       "scripts/vyos/cleanup-vyos-configure.sh",
       "scripts/vyos/cleanup.sh",

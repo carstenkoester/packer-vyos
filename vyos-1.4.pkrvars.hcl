@@ -37,6 +37,9 @@ cloud_init_datasource = "nocloud_configdrive"
 # so it needs a seed
 #remove_build_user = true
 
+# hostname saved in the image config, default vyosbuild. an image booted without a seed keeps it
+#image_hostname = "vyosbuild"
+
 # Set grub_serial=1 to boot with the serial console instead of the VGA console. The hypervisor needs a
 # serial port as well. On VyOS 1.4 and later, kernel and boot messages then go to serial only.
 # 
