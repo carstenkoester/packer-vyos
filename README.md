@@ -213,6 +213,7 @@ to find the build1 image, so run `build1-*` first, with the same `vm_name`.
 | `debian`        | the Debian package (the default in the vars files)  |
 | `vyos`          | the VyOS apt repository                             |
 | `local_package` | a `.deb` you build from the VyOS fork               |
+| `none`          | nowhere, cloud-init is not installed or changed     |
 
 `vyos` currently fails: as of November 2026 the repository host named in
 `http/debian_*-vyos.list` (`dev.packages.vyos.net`) does not resolve.

@@ -3,9 +3,11 @@
 set -e
 set -x
 
-# local_package needs the debian repos too, for the dependencies of the .deb
-if [[ "${CLOUD_INIT}" != "debian" && "${CLOUD_INIT}" != "local_package" ]]; then
-    echo "$0 - info: cloud_init not debian or local_package, skipping"
+# the debian repos are needed whatever cloud_init is: apt-install.sh and platform-qemu.sh install
+# debian packages, and local_package needs them for the dependencies of the .deb. only vyos skips
+# this, its list (debian_*-vyos.list) has the debian entries too and apt-repo-vyos.sh installs it
+if [[ "${CLOUD_INIT}" == "vyos" ]]; then
+    echo "$0 - info: cloud_init vyos, apt-repo-vyos.sh sets up the debian repos too, skipping"
     exit 0
 fi
 

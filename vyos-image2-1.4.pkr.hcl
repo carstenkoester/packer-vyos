@@ -52,6 +52,7 @@ variable "platform" {
 # debian - will install/replace cloud-init packages 
 # vyos - will keep cloud-init packages from vyos
 # local_package - will install the .deb named by cloud_init_local_filename
+# none - don't install or change cloud-init
 variable "cloud_init" {
   type        = string
   default     = "vyos"

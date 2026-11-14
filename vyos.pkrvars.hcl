@@ -19,7 +19,7 @@ platform            = "qemu"
 # debian - will install/replace cloud-init packages 
 # vyos - will keep cloud-init packages from vyos
 # local_package - will install the .deb named by cloud_init_local_filename
-# comment - don't install cloud-init at all
+# none - don't install or change cloud-init
 cloud_init          = "debian"
 
 # which kind of datasource should be used
