@@ -22,6 +22,11 @@ for interface in interfaces:
     hw_id_path = ['interfaces', 'ethernet', interface]
     config.delete(hw_id_path)
 
+# remove the name server the build sets to fetch packages, so it does not stay in the image
+name_server_path = ['system', 'name-server']
+if config.exists(name_server_path):
+    config.delete(name_server_path)
+
 # remove the user created by the installer from the saved config, so the image has no
 # known login credential. vyos deletes the account on the next boot, since it is not in
 # the config. only the saved config changes, the running build session is not affected,
